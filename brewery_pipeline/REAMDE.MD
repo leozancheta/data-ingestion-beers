@@ -21,4 +21,4 @@ docker-compose up
 
 ## Executar testes
 ```bash
-pytest tests/
+pytest tests/ 
