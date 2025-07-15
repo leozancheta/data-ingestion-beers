@@ -1,0 +1,6 @@
+pandas
+requests
+apache-airflow
+fastparquet
+pyarrow
+pyspark
