@@ -1,8 +1,8 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
-from src.etl.extract import fetch_and_store_raw_data
-from src.etl.transform import transform_to_silver, aggregate_to_gold
+from src.extract import fetch_and_store_raw_data
+from src.transform import transform_to_silver, aggregate_to_gold
 
 with DAG(
     'brewery_pipeline',
