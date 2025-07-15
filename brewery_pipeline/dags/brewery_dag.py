@@ -2,10 +2,10 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import sys
-sys.path.append('/opt/airflow/scripts')
-from scripts.extract import extract_data
-from scripts.transform import transform_data
-from scripts.aggregate import aggregate_data
+sys.path.append('/home/leozancheta/data-ingestion-beers/brewery_pipeline/scripts')
+from extract import extract_data
+from transform import transform_data
+from aggregate import aggregate_data
 
 default_args = {
     'owner': 'airflow',
