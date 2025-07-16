@@ -3,7 +3,7 @@ name: Auto PR Developer to Main
 on:
   push:
     branches:
-      - developer
+      - develop
 
 jobs:
   create-pull-request:

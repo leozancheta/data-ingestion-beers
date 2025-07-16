@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - '**'
-      - '!developer'  # ignora push direto na developer
+      - '!develop'  # ignora push direto na developer
 
 jobs:
   create-pull-request:
@@ -19,6 +19,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           base: developer
           branch: ${{ github.ref_name }}
-          title: 'Auto PR: ${{ github.ref_name }} → developer'
+          title: 'Auto PR: ${{ github.ref_name }} → develop'
           body: 'PR automática para comparar ${{ github.ref_name }} com developer'
           draft: false
