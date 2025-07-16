@@ -47,4 +47,4 @@ jobs:
           branch: ${{ github.ref_name }}
           title: 'Auto PR: ${{ github.ref_name }} → develop'
           body: 'PR automática para promover ${{ github.ref_name }} para develop'
-          draft: false
+          draft: true
