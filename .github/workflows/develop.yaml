@@ -17,7 +17,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           base: main
-          branch: developer
-          title: 'Auto PR: developer → main'
-          body: 'PR automática para promover developer para main'
+          branch: develop
+          title: 'Auto PR: develop → main'
+          body: 'PR automática para promover develop para main'
           draft: false

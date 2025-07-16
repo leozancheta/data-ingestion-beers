@@ -1,4 +1,4 @@
-name: Auto PR to Developer
+name: Auto PR to Develop
 
 on:
   push:
@@ -17,8 +17,8 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          base: developer
+          base: develop
           branch: ${{ github.ref_name }}
           title: 'Auto PR: ${{ github.ref_name }} → develop'
-          body: 'PR automática para comparar ${{ github.ref_name }} com developer'
+          body: 'PR automática para comparar ${{ github.ref_name }} com develop
           draft: false
