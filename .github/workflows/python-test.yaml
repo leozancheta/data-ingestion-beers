@@ -1,4 +1,4 @@
-name: Run Unit Tests
+name: Run Unit Tests and Create PR
 
 on:
   push:
@@ -30,3 +30,21 @@ jobs:
       - name: Run unit tests
         run: |
           pytest
+
+  create-pull-request:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/develop'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request to develop
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: develop
+          branch: ${{ github.ref_name }}
+          title: 'Auto PR: ${{ github.ref_name }} → develop'
+          body: 'PR automática para promover ${{ github.ref_name }} para develop'
+          draft: false
