@@ -4,3 +4,5 @@ requests
 pytest-cov
 pytest-mock
 pyspark
+pyarrow
+fastparquet
