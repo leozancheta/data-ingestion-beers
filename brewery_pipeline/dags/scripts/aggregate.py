@@ -8,3 +8,5 @@ def aggregate_data():
     result = df.groupby(['state', 'brewery_type']).size().reset_index(name='brewery_count')
     os.makedirs('/opt/airflow/data/gold', exist_ok=True)
     result.to_parquet('/opt/airflow/data/gold/aggregated_breweries.parquet', index=False)
+if __name__ == "__main__":
+    aggregate_data()
