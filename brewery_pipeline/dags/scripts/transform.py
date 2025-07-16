@@ -8,3 +8,5 @@ def transform_data():
     for state in df['state'].unique():
         partition = df[df['state'] == state]
         partition.to_parquet(f'/opt/airflow/data/silver/state={state}.parquet', index=False)
+if __name__ == "__main__":
+    transform_data()
