@@ -1,0 +1,23 @@
+name: Auto PR Developer to Main
+
+on:
+  push:
+    branches:
+      - developer
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: developer
+          title: 'Auto PR: developer → main'
+          body: 'PR automática para promover developer para main'
+          draft: false
