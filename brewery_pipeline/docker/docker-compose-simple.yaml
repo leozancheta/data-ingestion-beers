@@ -10,7 +10,7 @@ services:
       - postgres_db:/var/lib/postgresql/data
 
   airflow-webserver:
-    image: apache/airflow:2.9.1
+    image: apache/airflow:2.8.1
     restart: always
     user: root
     environment:
@@ -18,18 +18,14 @@ services:
       AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__FERNET_KEY: zoC8-_2E7-ND4I6aRwt_F38Igd-F0-7EusToSlqxxHg=
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      # Configurações específicas para compatibilidade
-      AIRFLOW__CORE__ENABLE_XCOM_PICKLING: 'true'
-      AIRFLOW__WEBSERVER__WORKERS: 1
-      AIRFLOW__WEBSERVER__WORKER_REFRESH_BATCH_SIZE: 0
       # Configurações de email
       AIRFLOW__EMAIL__EMAIL_BACKEND: airflow.utils.email.send_email_smtp
       AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
       AIRFLOW__SMTP__SMTP_STARTTLS: 'true'
       AIRFLOW__SMTP__SMTP_SSL: 'false'
       AIRFLOW__SMTP__SMTP_PORT: 587
-      AIRFLOW__SMTP__SMTP_USER: leozancheta@gmail.com
-      AIRFLOW__SMTP__SMTP_PASSWORD: mbha iimo bpvh bcqz
+      AIRFLOW__SMTP__SMTP_USER: seu-email
+      AIRFLOW__SMTP__SMTP_PASSWORD: sua-senha
       AIRFLOW__SMTP__SMTP_MAIL_FROM: leozancheta@gmail.com
     volumes:
       - ../dags:/opt/airflow/dags
@@ -53,7 +49,7 @@ services:
       "
 
   airflow-scheduler:
-    image: apache/airflow:2.9.1
+    image: apache/airflow:2.8.1
     restart: always
     user: root
     environment:
@@ -61,17 +57,14 @@ services:
       AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__FERNET_KEY: zoC8-_2E7-ND4I6aRwt_F38Igd-F0-7EusToSlqxxHg=
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      # Configurações específicas para compatibilidade
-      AIRFLOW__CORE__ENABLE_XCOM_PICKLING: 'true'
-      AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT: 'false'
       # Configurações de email
       AIRFLOW__EMAIL__EMAIL_BACKEND: airflow.utils.email.send_email_smtp
       AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
       AIRFLOW__SMTP__SMTP_STARTTLS: 'true'
       AIRFLOW__SMTP__SMTP_SSL: 'false'
       AIRFLOW__SMTP__SMTP_PORT: 587
-      AIRFLOW__SMTP__SMTP_USER: leozancheta@gmail.com
-      AIRFLOW__SMTP__SMTP_PASSWORD: mbha iimo bpvh bcqz
+      AIRFLOW__SMTP__SMTP_USER: seu-email
+      AIRFLOW__SMTP__SMTP_PASSWORD: sua-senha
       AIRFLOW__SMTP__SMTP_MAIL_FROM: leozancheta@gmail.com
     volumes:
       - ../dags:/opt/airflow/dags
