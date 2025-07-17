@@ -91,7 +91,18 @@ jobs:
         if: steps.check_pr.outputs.PR_EXISTS == '0'
         run: |
           PR_NUMBER=$(gh pr list --head ${{ env.BRANCH_NAME }} --base develop --json number --jq '.[0].number')
-          gh pr edit $PR_NUMBER --add-label "automated-pr,tests-passed,ready-for-review"
+          
+          # Tentar adicionar labels básicas que existem por padrão
+          gh pr edit $PR_NUMBER --add-label "enhancement" || echo "Label enhancement não encontrada"
+          
+          # Adicionar comentário informativo sobre o status
+          gh pr comment $PR_NUMBER --body "🤖 **PR Automática Criada**
+          
+          ✅ **Status**: Todos os testes unitários passaram
+          🕐 **Criada em**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          🔧 **Tipo**: Automated PR após testes bem-sucedidos
+          
+          Esta PR está pronta para revisão!"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

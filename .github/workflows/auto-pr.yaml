@@ -118,8 +118,16 @@ jobs:
           
           PR_NUMBER=$(gh pr list --head ${{ env.BRANCH_NAME }} --base ${{ env.TARGET_BRANCH }} --json number --jq '.[0].number')
           
-          # Adicionar labels
-          gh pr edit $PR_NUMBER --add-label "automated-pr,tests-passed,ready-for-review,do-not-auto-merge"
+          # Tentar adicionar labels básicas que existem por padrão
+          gh pr edit $PR_NUMBER --add-label "enhancement" || echo "Label enhancement não encontrada"
+          
+          # Adicionar comentário informativo sobre o status automático
+          gh pr comment $PR_NUMBER --body "🤖 **Status Automático da PR**
+          
+          ✅ **Testes**: Todos passaram com sucesso
+          🔄 **Tipo**: PR automática pós-validação
+          📝 **Ação**: Pronta para revisão manual
+          🚀 **Próximo passo**: Aguardando aprovação para merge"
           
           echo "✅ PR #$PR_NUMBER criada com sucesso!"
           echo "🔗 Link: ${{ github.server_url }}/${{ github.repository }}/pull/$PR_NUMBER"
