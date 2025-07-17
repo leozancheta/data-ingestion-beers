@@ -9,25 +9,6 @@ services:
     volumes:
       - postgres_db:/var/lib/postgresql/data
 
-  # Container de inicialização para configurar permissões
-  airflow-init:
-    image: apache/airflow:2.8.1
-    user: root
-    volumes:
-      - ../dags:/opt/airflow/dags
-      - ../scripts:/opt/airflow/scripts
-      - ../data:/opt/airflow/data
-      - ../dataquality:/opt/airflow/dataquality
-      - ./init-airflow.sh:/init-airflow.sh
-    command: ["bash", "/init-airflow.sh"]
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-      AIRFLOW__CORE__FERNET_KEY: zoC8-_2E7-ND4I6aRwt_F38Igd-F0-7EusToSlqxxHg=
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    depends_on:
-      - postgres
-
   airflow-webserver:
     image: apache/airflow:2.8.1
     restart: always
@@ -42,15 +23,18 @@ services:
       - ../scripts:/opt/airflow/scripts
       - ../data:/opt/airflow/data
       - ../dataquality:/opt/airflow/dataquality
-      - ./entrypoint-webserver.sh:/entrypoint-webserver.sh
     ports:
       - 8080:8080
     depends_on:
       - postgres
-      - airflow-init
       - airflow-scheduler
-    entrypoint: ["/entrypoint-webserver.sh"]
-    command: ["airflow", "webserver"]
+    command: >
+      bash -c "
+        echo 'Configurando permissões...'
+        chmod -R 777 /opt/airflow
+        echo 'Iniciando webserver...'
+        airflow webserver
+      "
 
   airflow-scheduler:
     image: apache/airflow:2.8.1
@@ -66,12 +50,19 @@ services:
       - ../scripts:/opt/airflow/scripts
       - ../data:/opt/airflow/data
       - ../dataquality:/opt/airflow/dataquality
-      - ./entrypoint-scheduler.sh:/entrypoint-scheduler.sh
     depends_on:
       - postgres
-      - airflow-init
-    entrypoint: ["/entrypoint-scheduler.sh"]
-    command: ["airflow", "scheduler"]
+    command: >
+      bash -c "
+        echo 'Configurando permissões...'
+        chmod -R 777 /opt/airflow
+        echo 'Inicializando banco de dados...'
+        airflow db init
+        echo 'Criando usuário admin...'
+        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin || echo 'Usuário já existe'
+        echo 'Iniciando scheduler...'
+        airflow scheduler
+      "
 
 volumes:
   postgres_db:

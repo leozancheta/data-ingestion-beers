@@ -19,7 +19,7 @@ def failure_alert(context):
     Execution date: {context['execution_date']}<br>
     Log: <a href="{context['task_instance'].log_url}">Ver log</a>
     """
-    send_email(to="seuemail@dominio.com", subject=subject, html_content=html_content)
+    send_email(to="leozancheta@gmail.com", subject=subject, html_content=html_content)
 
 default_args = {
     'owner': 'airflow',
