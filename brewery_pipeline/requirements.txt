@@ -2,3 +2,4 @@ apache-airflow>=2.0.0
 pandas
 requests
 pytest
+jsonschema
