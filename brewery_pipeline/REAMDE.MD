@@ -13,7 +13,7 @@ cd brewery_pipeline
 
 2. Suba os containers:
 ```bash
-cd docker
+cd docker 
 docker-compose up
 ```
 
