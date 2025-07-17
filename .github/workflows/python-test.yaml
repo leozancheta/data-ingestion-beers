@@ -3,10 +3,12 @@ name: Run Unit Tests and Create PR
 on:
   push:
     branches:
-      - '**'
+      - 'feature/**'
+      - 'feature/*'
   pull_request:
     branches:
-      - '**'
+      - 'develop'
+      - 'main'
 
 jobs:
   test:
@@ -19,14 +21,88 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: |
-          cd brewery_pipeline/tests
+          cd brewery_pipeline
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r tests/requirements.txt
 
       - name: Run unit tests
         run: |
-          pytest
+          cd brewery_pipeline
+          python -m pytest tests/ -v --tb=short
+
+  create-pr:
+    needs: test
+    runs-on: ubuntu-latest
+    if: success() && startsWith(github.ref, 'refs/heads/feature/')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract branch name
+        shell: bash
+        run: echo "BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_ENV
+
+      - name: Check if PR already exists
+        id: check_pr
+        run: |
+          PR_EXISTS=$(gh pr list --head ${{ env.BRANCH_NAME }} --base develop --json number --jq length)
+          echo "PR_EXISTS=$PR_EXISTS" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        if: steps.check_pr.outputs.PR_EXISTS == '0'
+        run: |
+          gh pr create \
+            --title "🚀 Auto PR: ${{ env.BRANCH_NAME }} → develop" \
+            --body "## 📋 Resumo das Alterações
+
+          Esta PR foi criada automaticamente após os testes unitários passarem com sucesso.
+
+          ### ✅ Testes Executados
+          - Todos os testes unitários passaram
+          - Pipeline de CI/CD validado
+
+          ### 🔍 Branch
+          - **Origem**: \`${{ env.BRANCH_NAME }}\`
+          - **Destino**: \`develop\`
+
+          ### 📝 Próximos Passos
+          1. Revisar as alterações
+          2. Verificar se não há conflitos
+          3. Fazer merge quando aprovado
+
+          ---
+          *Esta PR foi gerada automaticamente pelo GitHub Actions* 🤖" \
+            --base develop \
+            --head ${{ env.BRANCH_NAME }} \
+            --assignee ${{ github.actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add labels to PR
+        if: steps.check_pr.outputs.PR_EXISTS == '0'
+        run: |
+          PR_NUMBER=$(gh pr list --head ${{ env.BRANCH_NAME }} --base develop --json number --jq '.[0].number')
+          gh pr edit $PR_NUMBER --add-label "automated-pr,tests-passed,ready-for-review"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on existing PR
+        if: steps.check_pr.outputs.PR_EXISTS != '0'
+        run: |
+          PR_NUMBER=$(gh pr list --head ${{ env.BRANCH_NAME }} --base develop --json number --jq '.[0].number')
+          gh pr comment $PR_NUMBER --body "✅ **Testes atualizados passaram com sucesso!**
+
+          - Pipeline executado em: \`$(date)\`
+          - Commit: \`${{ github.sha }}\`
+          - Todos os testes unitários foram executados com sucesso"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
