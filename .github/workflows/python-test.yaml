@@ -5,6 +5,7 @@ on:
     branches:
       - 'feature/**'
       - 'feature/*'
+      - develop  # Adicionado para disparar quando há push em develop
   pull_request:
     branches:
       - 'develop'
@@ -117,3 +118,15 @@ jobs:
           - Todos os testes unitários foram executados com sucesso"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  trigger-release:
+    needs: test
+    runs-on: ubuntu-latest
+    if: success() && github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Notify release workflow trigger
+        run: |
+          echo "🚀 Pipeline em develop executado com sucesso!"
+          echo "📋 O workflow de release (develop → main) será disparado automaticamente"
+          echo "🔄 Verificando se há mudanças para criar PR de release..."
