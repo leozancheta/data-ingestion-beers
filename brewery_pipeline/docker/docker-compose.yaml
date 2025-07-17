@@ -21,6 +21,7 @@ services:
       - ../dags:/opt/airflow/dags
       - ../scripts:/opt/airflow/scripts
       - ../data:/opt/airflow/data
+      - ../dataquality:/opt/airflow/dataquality
     ports:
       - 8080:8080
     depends_on:
@@ -40,6 +41,7 @@ services:
       - ../dags:/opt/airflow/dags
       - ../scripts:/opt/airflow/scripts
       - ../data:/opt/airflow/data
+      - ../dataquality:/opt/airflow/dataquality
     depends_on:
       - postgres
     command: ["airflow", "scheduler"]
