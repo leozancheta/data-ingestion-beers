@@ -1,0 +1,161 @@
+name: Auto PR Creation
+
+on:
+  workflow_run:
+    workflows: ["Run Unit Tests and Create PR"]
+    types:
+      - completed
+    branches:
+      - 'feature/**'
+
+jobs:
+  auto-pr:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Extract branch info
+        shell: bash
+        run: |
+          echo "BRANCH_NAME=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_ENV
+          echo "COMMIT_SHA=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_ENV
+
+      - name: Check if develop branch exists
+        run: |
+          if git show-ref --verify --quiet refs/remotes/origin/develop; then
+            echo "DEVELOP_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "DEVELOP_EXISTS=false" >> $GITHUB_ENV
+            echo "Branch develop não existe, usando main como base"
+          fi
+
+      - name: Set target branch
+        run: |
+          if [ "${{ env.DEVELOP_EXISTS }}" = "true" ]; then
+            echo "TARGET_BRANCH=develop" >> $GITHUB_ENV
+          else
+            echo "TARGET_BRANCH=main" >> $GITHUB_ENV
+          fi
+
+      - name: Check if PR already exists
+        id: check_pr
+        run: |
+          PR_EXISTS=$(gh pr list --head ${{ env.BRANCH_NAME }} --base ${{ env.TARGET_BRANCH }} --json number --jq length)
+          echo "PR_EXISTS=$PR_EXISTS" >> $GITHUB_OUTPUT
+          
+          if [ "$PR_EXISTS" != "0" ]; then
+            PR_NUMBER=$(gh pr list --head ${{ env.BRANCH_NAME }} --base ${{ env.TARGET_BRANCH }} --json number --jq '.[0].number')
+            echo "EXISTING_PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get commit info
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s" ${{ env.COMMIT_SHA }})
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an" ${{ env.COMMIT_SHA }})
+          echo "COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
+          echo "$COMMIT_MESSAGE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo "COMMIT_AUTHOR=$COMMIT_AUTHOR" >> $GITHUB_ENV
+
+      - name: Create Pull Request
+        if: steps.check_pr.outputs.PR_EXISTS == '0'
+        run: |
+          gh pr create \
+            --title "🚀 Auto PR: ${{ env.BRANCH_NAME }} → ${{ env.TARGET_BRANCH }}" \
+            --body "## 📋 Resumo das Alterações
+
+          Esta PR foi criada automaticamente após os testes unitários passarem com sucesso.
+
+          ### ✅ Status dos Testes
+          - ✅ Todos os testes unitários passaram
+          - ✅ Pipeline de CI/CD validado
+          - ✅ Código pronto para revisão
+
+          ### 📝 Informações do Commit
+          - **Último commit**: \`${{ env.COMMIT_MESSAGE }}\`
+          - **Autor**: ${{ env.COMMIT_AUTHOR }}
+          - **SHA**: \`${{ env.COMMIT_SHA }}\`
+
+          ### 🔍 Detalhes da Branch
+          - **Branch origem**: \`${{ env.BRANCH_NAME }}\`
+          - **Branch destino**: \`${{ env.TARGET_BRANCH }}\`
+          - **Workflow**: [Ver execução](${{ github.event.workflow_run.html_url }})
+
+          ### 📋 Checklist para Revisão
+          - [ ] Código revisado
+          - [ ] Testes adicionais necessários?
+          - [ ] Documentação atualizada?
+          - [ ] Sem conflitos de merge
+
+          ### 🚀 Próximos Passos
+          1. 👀 Revisar as alterações
+          2. ✅ Aprovar se estiver tudo ok
+          3. 🔀 Fazer merge quando aprovado
+
+          ---
+          *Esta PR foi gerada automaticamente pelo GitHub Actions* 🤖
+          
+          **Não fazer merge automaticamente** - Aguardar revisão manual." \
+            --base ${{ env.TARGET_BRANCH }} \
+            --head ${{ env.BRANCH_NAME }} \
+            --assignee ${{ github.event.workflow_run.actor.login }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add labels and reviewers to new PR
+        if: steps.check_pr.outputs.PR_EXISTS == '0'
+        run: |
+          # Aguardar um pouco para a PR ser criada
+          sleep 5
+          
+          PR_NUMBER=$(gh pr list --head ${{ env.BRANCH_NAME }} --base ${{ env.TARGET_BRANCH }} --json number --jq '.[0].number')
+          
+          # Tentar adicionar labels básicas que existem por padrão
+          gh pr edit $PR_NUMBER --add-label "enhancement" || echo "Label enhancement não encontrada"
+          
+          # Adicionar comentário informativo sobre o status automático
+          gh pr comment $PR_NUMBER --body "🤖 **Status Automático da PR**
+          
+          ✅ **Testes**: Todos passaram com sucesso
+          🔄 **Tipo**: PR automática pós-validação
+          📝 **Ação**: Pronta para revisão manual
+          🚀 **Próximo passo**: Aguardando aprovação para merge"
+          
+          echo "✅ PR #$PR_NUMBER criada com sucesso!"
+          echo "🔗 Link: ${{ github.server_url }}/${{ github.repository }}/pull/$PR_NUMBER"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update existing PR
+        if: steps.check_pr.outputs.PR_EXISTS != '0'
+        run: |
+          PR_NUMBER=${{ steps.check_pr.outputs.EXISTING_PR_NUMBER }}
+          
+          gh pr comment $PR_NUMBER --body "🔄 **Atualização da Branch - Testes Passaram!**
+
+          ### ✅ Status Atual
+          - ✅ Todos os testes unitários passaram novamente
+          - 🕐 Executado em: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          - 📦 Novo commit: \`${{ env.COMMIT_SHA }}\`
+
+          ### 📝 Último Commit
+          - **Mensagem**: ${{ env.COMMIT_MESSAGE }}
+          - **Autor**: ${{ env.COMMIT_AUTHOR }}
+
+          ### 🔗 Links Úteis
+          - [Ver workflow](${{ github.event.workflow_run.html_url }})
+          - [Ver commit]({{ github.server_url }}/${{ github.repository }}/commit/${{ env.COMMIT_SHA }})
+
+          A PR está atualizada e pronta para revisão! 🚀"
+          
+          echo "✅ PR #$PR_NUMBER atualizada com sucesso!"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
