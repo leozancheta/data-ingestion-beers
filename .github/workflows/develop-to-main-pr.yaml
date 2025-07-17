@@ -1,0 +1,208 @@
+name: Auto PR Develop to Main
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_run:
+    workflows: ["Run Unit Tests and Create PR"]
+    types:
+      - completed
+    branches:
+      - develop
+
+jobs:
+  create-pr-to-main:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: develop
+
+      - name: Check if main branch exists
+        run: |
+          if git show-ref --verify --quiet refs/remotes/origin/main; then
+            echo "MAIN_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "MAIN_EXISTS=false" >> $GITHUB_ENV
+            echo "Branch main não existe, cancelando workflow"
+            exit 1
+          fi
+
+      - name: Check for differences between develop and main
+        id: check_diff
+        run: |
+          # Buscar as últimas mudanças
+          git fetch origin main develop
+          
+          # Verificar se há diferenças entre develop e main
+          DIFF_COUNT=$(git rev-list --count origin/main..origin/develop)
+          echo "DIFF_COUNT=$DIFF_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$DIFF_COUNT" -eq "0" ]; then
+            echo "Não há diferenças entre develop e main"
+            echo "HAS_CHANGES=false" >> $GITHUB_OUTPUT
+          else
+            echo "Encontradas $DIFF_COUNT diferenças entre develop e main"
+            echo "HAS_CHANGES=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if PR already exists
+        id: check_pr
+        if: steps.check_diff.outputs.HAS_CHANGES == 'true'
+        run: |
+          PR_EXISTS=$(gh pr list --head develop --base main --json number --jq length)
+          echo "PR_EXISTS=$PR_EXISTS" >> $GITHUB_OUTPUT
+          
+          if [ "$PR_EXISTS" != "0" ]; then
+            PR_NUMBER=$(gh pr list --head develop --base main --json number --jq '.[0].number')
+            echo "EXISTING_PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest commits info
+        if: steps.check_diff.outputs.HAS_CHANGES == 'true'
+        run: |
+          # Pegar informações dos últimos commits em develop
+          LAST_COMMITS=$(git log origin/main..origin/develop --oneline --max-count=10)
+          echo "LAST_COMMITS<<EOF" >> $GITHUB_ENV
+          echo "$LAST_COMMITS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          # Pegar o último commit
+          LAST_COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s" origin/develop)
+          LAST_COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an" origin/develop)
+          echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
+          echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo "LAST_COMMIT_AUTHOR=$LAST_COMMIT_AUTHOR" >> $GITHUB_ENV
+
+      - name: Create Pull Request from develop to main
+        if: steps.check_diff.outputs.HAS_CHANGES == 'true' && steps.check_pr.outputs.PR_EXISTS == '0'
+        run: |
+          gh pr create \
+            --title "🚀 Release: develop → main" \
+            --body "## 📋 Release Notes - Develop para Main
+
+          Esta PR foi criada automaticamente para sincronizar as mudanças de \`develop\` para \`main\`.
+
+          ### ✅ Status dos Testes
+          - ✅ Todos os testes unitários passaram em develop
+          - ✅ Pipeline de CI/CD validado
+          - ✅ Features validadas e aprovadas
+
+          ### 📝 Últimas Mudanças
+          \`\`\`
+          ${{ env.LAST_COMMITS }}
+          \`\`\`
+
+          ### 🔍 Informações da Release
+          - **Branch origem**: \`develop\`
+          - **Branch destino**: \`main\`
+          - **Último commit**: \`${{ env.LAST_COMMIT_MESSAGE }}\`
+          - **Autor**: ${{ env.LAST_COMMIT_AUTHOR }}
+          - **Data**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          ### 📋 Checklist para Release
+          - [ ] Código revisado e aprovado em develop
+          - [ ] Todos os testes passando
+          - [ ] Documentação atualizada se necessário
+          - [ ] Versão/changelog atualizado (se aplicável)
+          - [ ] Sem breaking changes não documentadas
+
+          ### 🚀 Próximos Passos
+          1. 👀 Revisar as mudanças consolidadas
+          2. ✅ Aprovar se tudo estiver correto
+          3. 🔀 Fazer merge para main (release)
+          4. 🏷️ Criar tag de versão se necessário
+
+          ---
+          *Esta PR foi gerada automaticamente pelo GitHub Actions* 🤖
+          
+          **⚠️ IMPORTANTE**: Esta é uma release para produção - revisar cuidadosamente antes do merge!" \
+            --base main \
+            --head develop \
+            --assignee ${{ github.actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add labels and reviewers to new PR
+        if: steps.check_diff.outputs.HAS_CHANGES == 'true' && steps.check_pr.outputs.PR_EXISTS == '0'
+        run: |
+          # Aguardar um pouco para a PR ser criada
+          sleep 5
+          
+          PR_NUMBER=$(gh pr list --head develop --base main --json number --jq '.[0].number')
+          
+          # Tentar adicionar labels de release
+          gh pr edit $PR_NUMBER --add-label "release" || echo "Label release não encontrada"
+          gh pr edit $PR_NUMBER --add-label "enhancement" || echo "Label enhancement não encontrada"
+          
+          # Adicionar comentário informativo sobre a release
+          gh pr comment $PR_NUMBER --body "🚀 **Release Automática - Develop → Main**
+          
+          ### 📊 Estatísticas
+          - 🔄 **Commits novos**: ${{ steps.check_diff.outputs.DIFF_COUNT }}
+          - 🕐 **Criada em**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          - 🏷️ **Tipo**: Release automática
+          
+          ### ⚠️ Atenção
+          Esta é uma PR de **release para produção**. Por favor:
+          - Revisar todas as mudanças cuidadosamente
+          - Verificar se há breaking changes
+          - Confirmar que todos os testes passaram
+          - Validar se a documentação está atualizada
+          
+          ### 🔄 Workflow
+          1. Esta PR foi criada automaticamente após mudanças em develop
+          2. Aguardando revisão manual antes do merge
+          3. Após aprovação, será feito o merge para main
+          
+          **Não fazer merge sem revisão adequada!** 🚨"
+          
+          echo "✅ PR #$PR_NUMBER criada com sucesso!"
+          echo "🔗 Link: ${{ github.server_url }}/${{ github.repository }}/pull/$PR_NUMBER"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update existing PR
+        if: steps.check_diff.outputs.HAS_CHANGES == 'true' && steps.check_pr.outputs.PR_EXISTS != '0'
+        run: |
+          PR_NUMBER=${{ steps.check_pr.outputs.EXISTING_PR_NUMBER }}
+          
+          gh pr comment $PR_NUMBER --body "🔄 **Release Atualizada - Novas Mudanças em Develop**
+
+          ### ✅ Status Atual
+          - ✅ Novas mudanças detectadas em develop
+          - 🕐 Atualizado em: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          - 📦 Novos commits: ${{ steps.check_diff.outputs.DIFF_COUNT }}
+
+          ### 📝 Últimas Mudanças
+          \`\`\`
+          ${{ env.LAST_COMMITS }}
+          \`\`\`
+
+          ### 🔍 Último Commit
+          - **Mensagem**: ${{ env.LAST_COMMIT_MESSAGE }}
+          - **Autor**: ${{ env.LAST_COMMIT_AUTHOR }}
+
+          ### 🔗 Links Úteis
+          - [Ver workflow](${{ github.server_url }}/${{ github.repository }}/actions)
+          - [Comparar mudanças](${{ github.server_url }}/${{ github.repository }}/compare/main...develop)
+
+          A PR foi atualizada e está pronta para nova revisão! 🚀"
+          
+          echo "✅ PR #$PR_NUMBER atualizada com sucesso!"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: No changes detected
+        if: steps.check_diff.outputs.HAS_CHANGES == 'false'
+        run: |
+          echo "ℹ️ Nenhuma mudança detectada entre develop e main"
+          echo "Não há necessidade de criar uma PR de release"
