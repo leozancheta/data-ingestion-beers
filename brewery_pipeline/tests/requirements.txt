@@ -1,0 +1,8 @@
+pytest
+pandas
+requests
+pytest-cov
+pytest-mock
+pyspark
+pyarrow
+fastparquet

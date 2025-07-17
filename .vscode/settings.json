@@ -1,5 +1,14 @@
 {
     "python.analysis.extraPaths": [
         "./brewery_pipeline/scripts"
-    ]
+    ],
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./brewery_pipeline",
+        "-p",
+        "test_*.py"
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestEnabled": true
 }
